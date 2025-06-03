@@ -1,0 +1,28 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <!-- UI icons -->
+    <qresource prefix="/icons">
+        <!-- File menu icons -->
+        <file alias="new_case">assets/icons/new_case.svg</file>
+        <file alias="open_case">assets/icons/open_case.svg</file>
+        <file alias="save_case">assets/icons/save_case.svg</file>
+        <!-- Edit menu icons -->
+        <file alias="undo">assets/icons/undo.svg</file>
+        <file alias="redo">assets/icons/redo.svg</file>
+        <file alias="cut">assets/icons/cut.svg</file>
+        <file alias="copy">assets/icons/copy.svg</file>
+        <file alias="paste">assets/icons/paste.svg</file>
+        <file alias="find">assets/icons/find.svg</file>
+        <!-- Tools menu icons -->
+        <file alias="disk_reader">assets/icons/disk_reader.svg</file>
+        <file alias="file_carver">assets/icons/file_carver.svg</file>
+    </qresource>
+
+    <!-- general images, logos, backgrounds, splash screens -->
+    <qresource prefix="/images">
+        <!-- app logo -->
+        <file alias="main_logo">assets/images/logo.svg</file>
+
+        <!-- misc -->
+        <file>assets/images/bp.svg</file>
+    </qresource>
+</RCC>
