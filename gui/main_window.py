@@ -29,14 +29,16 @@ class Window(QMainWindow):
         self.resize(1300, 700) # for initial window size
 
         self._createActions()
-        self._createMenuBar()
         self._createToolBars()
+        self._createMenuBar()
+        
         # self._createStatusBar()
 
         # Central Widget 
         self._createCentralWidget()
 
     def _createActions(self):
+        # hosts all the actions of req. for menubar&toolbar
         # File Actions
         self.new_case_action = QAction(QIcon(":/icons/new_case"), "&New Case", self) 
         self.new_case_action.setShortcut("Ctrl+N")
@@ -108,41 +110,29 @@ class Window(QMainWindow):
         file_menu = menu_bar.addMenu("&File") # & makes the next character an accelerator key (Alt+F)        
         # self.new_case_action.triggered.connect(self._newCase)
         file_menu.addAction(self.new_case_action)
-
         # self.open_case_action.triggered.connect(self._openCase)
         file_menu.addAction(self.open_case_action)
-
         # self.save_case_action.triggered.connect(self._saveCase)
         file_menu.addAction(self.save_case_action)
-
         file_menu.addSeparator()
-
         # self.exit_action.triggered.connect(self.close) # Connects to QMainWindow's close method
         file_menu.addAction(self.exit_action)
 
 
         # --- Edit Menu ---
         edit_menu = menu_bar.addMenu("&Edit")
-
         # self.undo_action.triggered.connect(lambda: self._editOption("Undo"))
         edit_menu.addAction(self.undo_action)
-
         # self.redo_action.triggered.connect(lambda: self._editOption("Redo"))
         edit_menu.addAction(self.redo_action)
-
         edit_menu.addSeparator()
-
         # self.cut_action.triggered.connect(lambda: self._editOption("Cut"))
         edit_menu.addAction(self.cut_action)
-
         # self.copy_action.triggered.connect(lambda: self._editOption("Copy"))
         edit_menu.addAction(self.copy_action)
-
         # self.paste_action.triggered.connect(lambda: self._editOption("Paste"))
         edit_menu.addAction(self.paste_action)
-
         edit_menu.addSeparator()
-
         find_replace_menu = edit_menu.addMenu(QIcon(":/icons/find"), "Find & Replace")        
         # self.find_action.triggered.connect(lambda: self._editOption("Find"))
         find_replace_menu.addAction(self.find_action)
@@ -155,11 +145,11 @@ class Window(QMainWindow):
         # Action for Toggling Toolbar Visibility
         self.toolbar_action.setCheckable(True)
         # Assuming self.toolbar exists and is initially visible
-        if hasattr(self, 'toolbar') and isinstance(self.toolbar, QToolBar):
-            self.toolbar_action.setChecked(self.toolbar.isVisible())
-            self.toolbar_action.triggered.connect(self.toolbar.setVisible)
+        if hasattr(self, 'main_toolbar') and isinstance(self.main_toolbar, QToolBar):
+            print("YES EXISTS")
+            self.toolbar_action.setChecked(self.main_toolbar.isVisible())
+            self.toolbar_action.triggered.connect(self.main_toolbar.setVisible)
         else:
-            # Handle cases where toolbar might not be initialized or is not a QToolBar
             self.toolbar_action.setEnabled(False) # Disable if toolbar is not available
         view_menu.addAction(self.toolbar_action)
 
@@ -174,7 +164,6 @@ class Window(QMainWindow):
         view_menu.addAction(self.statusbar_action)
 
         view_menu.addSeparator()
-
         # Action for Toggling File List Visibility
         self.filelist_action.setCheckable(True)
         # Assuming self.file_list_widget exists
@@ -187,23 +176,17 @@ class Window(QMainWindow):
 
         # --- Tools Menu ---
         tools_menu = menu_bar.addMenu("&Tools")
-
         # self.hash_calc_action.triggered.connect(self._hashCalculator)
         tools_menu.addAction(self.hash_calc_action)
-
         # self.file_carver_action.triggered.connect(self._fileCarver)
         tools_menu.addAction(self.file_carver_action)
-
         self.disk_imager_action = QAction(QIcon(":/icons/disk_reader"), "&Disk Imager", self)
         self.disk_imager_action.setStatusTip("Create forensic images of disks or partitions")
         # self.disk_imager_action.triggered.connect(self._diskImager)
         tools_menu.addAction(self.disk_imager_action)
-
         tools_menu.addSeparator()
-
         # self.options_action.triggered.connect(self._options)
         tools_menu.addAction(self.options_action)
-
 
         # --- Help Menu ---
         help_menu = menu_bar.addMenu("&Help")
@@ -213,7 +196,18 @@ class Window(QMainWindow):
 
 
     def _createToolBars(self):
-        main_toolbar = self.addToolBar("main")
+        self.main_toolbar = self.addToolBar("main_toolbar")
+        self.main_toolbar.addAction(self.new_case_action)
+        self.main_toolbar.addAction(self.open_case_action)
+        self.main_toolbar.addAction(self.save_case_action)
+        self.main_toolbar.addSeparator()
+        self.main_toolbar.addAction(self.undo_action)
+        self.main_toolbar.addAction(self.redo_action)
+        self.main_toolbar.addAction(self.copy_action)
+        self.main_toolbar.addAction(self.paste_action)
+
+
+
 
         
 
