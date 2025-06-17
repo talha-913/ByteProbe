@@ -1,10 +1,8 @@
-import sys
+# NEW: Show fileimport sys
 import os
 
-from PyQt6.QtGui import QAction, QIcon
-# ADDED: QFont, QSize for new UI elements
-from PyQt6.QtGui import QFont # ADDED
-from PyQt6.QtCore import Qt, QSize # MODIFIED: QSize already there, but ensuring QFont is added
+from PyQt6.QtGui import QAction, QIcon, QFont 
+from PyQt6.QtCore import Qt, QSize 
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -19,7 +17,6 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QFileDialog,
     QPushButton,
-    # --- ADDED WIDGETS FOR DATA SOURCE INTEGRATION ---
     QTabWidget,    # For multi-tab interface (Overview, Data Sources, etc.)
     QSplitter,      # For resizable panels (Recent Cases | Main Content)
     QListWidgetItem
@@ -30,23 +27,24 @@ from . import resources_rc
 from gui.case_creation import CaseCreationDialog
 from core.case_manager import CaseManager, CASES_BASE_DIR_NAME, APP_ROOT
 
-# --- ADDED IMPORTS FOR DATA SOURCE ---
-from gui.add_data_source_dialog import AddDataSourceDialog # New: Dialog for adding data sources
-from gui.data_source_viewer import DataSourceViewerWidget # New: Widget to display data sources
+# --- IMPORTS FOR DATA SOURCE ---
+from gui.add_data_source_dialog import AddDataSourceDialog # Dialog for adding data sources
+from gui.data_source_viewer import DataSourceViewerWidget # Widget to display data sources
+from gui.widgets.file_system_viewer import FileSystemViewerWidget  # NEW: Import file system viewer
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__(parent=None)
         self.setWindowTitle("ByteProbe")
+        self.setWindowIcon(QIcon("assets\images\byteprobe_logo.svg"))
 
         # handles the window size
         # self.showMaximized() #- for maximized screen sized win
         # self.showFullScreen() #- for fullscreen sized window
         # self.setMinimumSize(00, 00) #- can't be minimized further below
         self.resize(1300, 700) # for initial window size
-        # ADDED: Minimum size for better layout with new elements
-        self.setMinimumSize(1024, 768) # ADDED
+        self.setMinimumSize(1024, 768) 
 
         # --- Initialize CaseManager and current_case_path ---
         self.case_manager = CaseManager()
@@ -62,15 +60,13 @@ class MainWindow(QMainWindow):
 
 
         # Central Widget & Initial UI Layout
-        # MODIFIED: Call the *new* init_main_layout that incorporates tabs/splitter
-        self.init_main_layout() # This method will now handle setting up the main layout
+        self.init_main_layout() # handles setting up the main layout
 
-        # --- NEW: Call initial UI updates ---
-        self._update_status_bar() # Set initial status bar message
+        # --- Call initial UI updates ---
+        self._update_status_bar() # initial status bar message
         self._load_recent_cases_display() # Load and display recent cases on startup
-        # _populate_recent_cases_menu is called from _createMenuBar already
 
-        # ADDED: Set initial UI state for no case open (important for new actions/tabs)
+        # Set initial UI state for no case open 
         self._reset_ui_for_no_case()
 
 
@@ -82,25 +78,19 @@ class MainWindow(QMainWindow):
         self.new_case_action.setStatusTip("Create a new forensics investigation case")
         self.new_case_action.triggered.connect(self._open_new_case_dialog)
 
-
         self.open_case_action = QAction(QIcon(":/icons/open_case"), "&Open Case...", self)
         self.open_case_action.setShortcut("Ctrl+O")
         self.open_case_action.setStatusTip("Open an existing forensics case")
-        # MODIFIED: Connect to the new _open_case_from_dialog method
         self.open_case_action.triggered.connect(self._open_case_from_dialog)
-
 
         self.save_case_action = QAction(QIcon(":/icons/save_case"), "&Save Case", self)
         self.save_case_action.setShortcut("Ctrl+S")
         self.save_case_action.setStatusTip("Save the current forensics case")
-        # --- Placeholder for Save Case action ---
-        self.save_case_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Save Case not implemented yet."))
+        self.save_case_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Save Case not implemented yet.")) #to be implemented
 
-        # ADDED: Close Case Action
-        self.close_case_action = QAction(QIcon(":/icons/close_case"), "Close Case", self) # Assuming close_case icon
+        self.close_case_action = QAction(QIcon(":/icons/close_case"), "Close Case", self) 
         self.close_case_action.setStatusTip("Close the current forensic case")
         self.close_case_action.triggered.connect(self._close_current_case)
-        # Initially disabled, enabled when a case is open
 
         self.exit_action = QAction("E&xit", self)
         self.exit_action.setStatusTip("Exit the application")
@@ -109,31 +99,31 @@ class MainWindow(QMainWindow):
         # Edit Actions
         self.undo_action = QAction(QIcon(":/icons/undo"), "&Undo", self)
         self.undo_action.setStatusTip("Undo the last action")
-        self.undo_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Undo not implemented yet."))
+        self.undo_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Undo not implemented yet."))  # to be implemented
 
         self.redo_action = QAction(QIcon(":/icons/redo"), "&Redo", self)
         self.redo_action.setStatusTip("Redo the last undone action")
-        self.redo_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Redo not implemented yet."))
+        self.redo_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Redo not implemented yet.")) #to be implemented
 
         self.cut_action = QAction(QIcon(":/icons/cut"), "Cu&t", self)
         self.cut_action.setStatusTip("Cut the selected content")
-        self.cut_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Cut not implemented yet."))
+        self.cut_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Cut not implemented yet.")) #to be implemented
 
         self.copy_action = QAction(QIcon(":/icons/copy"), "&Copy", self)
         self.copy_action.setStatusTip("Copy the selected content")
-        self.copy_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Copy not implemented yet."))
+        self.copy_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Copy not implemented yet.")) #to be implemented
 
         self.paste_action = QAction(QIcon(":/icons/paste"), "&Paste", self)
         self.paste_action.setStatusTip("Paste content from the clipboard")
-        self.paste_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Paste not implemented yet."))
+        self.paste_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Paste not implemented yet.")) #to be implemented
 
         self.find_action = QAction( "&Find...", self)
         self.find_action.setStatusTip("Find text or patterns within the current view")
-        self.find_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Find not implemented yet."))
+        self.find_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Find not implemented yet.")) # to be implemented
 
         self.replace_action = QAction("Re&place...", self)
         self.replace_action.setStatusTip("Find and replace text or patterns")
-        self.replace_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Replace not implemented yet."))
+        self.replace_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Replace not implemented yet.")) #to be implemented
 
 
         # View Actions
@@ -148,50 +138,60 @@ class MainWindow(QMainWindow):
         self.filelist_action = QAction(QIcon(":/icons/folder_tree"), "&File List", self)
         self.filelist_action.setStatusTip("Toggle visibility of the file list pane")
         self.filelist_action.setCheckable(True)
-        # Connection for file list action will be done in _init_ui after widget creation
 
 
         # Tools Actions
         self.hash_calc_action = QAction(QIcon(":/icons/hash_calc"), "&Hash Calculator", self)
         self.hash_calc_action.setStatusTip("Calculate MD5, SHA1, SHA256 hashes for files")
-        self.hash_calc_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Hash Calculator not implemented yet."))
+        self.hash_calc_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Hash Calculator not implemented yet.")) #to be implemented
 
         self.file_carver_action = QAction(QIcon(":/icons/file_carver.png"), "&File Carver", self)
         self.file_carver_action.setStatusTip("Recover deleted files by carving disk images")
-        self.file_carver_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "File Carver not implemented yet."))
+        self.file_carver_action.triggered.connect(self._show_file_carver_dialog)  # MODIFIED: Connect to actual handler
+        self.file_carver_action.setEnabled(False)  # ADDED: Initially disabled
 
-        self.disk_imager_action = QAction(QIcon(":/icons/disk_reader"), "&Disk Imager", self) # Moved from _createMenuBar
+        self.disk_imager_action = QAction(QIcon(":/icons/disk_reader"), "&Disk Imager", self) 
         self.disk_imager_action.setStatusTip("Create forensic images of disks or partitions")
-        self.disk_imager_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Disk Imager not implemented yet."))
+        self.disk_imager_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Disk Imager not implemented yet.")) #to be implemented
 
         self.options_action = QAction( "&Options...", self)
         self.options_action.setStatusTip("Configure application settings")
-        self.options_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Options not implemented yet."))
+        self.options_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Options not implemented yet.")) #to be implemented
 
         # Help Actions
-        self.about_action = QAction(QIcon(":/icons/about"), "&About ByteProbe", self)
+        self.about_action = QAction(QIcon(":/icons/about"), "&About ByteProbe", self) 
         self.about_action.setStatusTip("Learn more about ByteProbe")
-        self.about_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "About ByteProbe not implemented yet."))
+        self.about_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "About ByteProbe not implemented yet.")) # to be implemented
 
-        # --- NEW: Placeholder for Recent Cases Menu Action ---
-        self.recent_cases_menu = None # Will be a QMenu instance, initialized in _createMenuBar
+        self.recent_cases_menu = None 
 
-        # --- ADDED: Data Source Action ---
-        self.add_data_source_action = QAction(QIcon(":/icons/add_source.svg"), "Add Data Source...", self) # Assuming you have add_source.svg
+        # --- Data Source Action ---
+        self.add_data_source_action = QAction(QIcon(":/icons/add_source.svg"), "+Data Source...", self) 
         self.add_data_source_action.setStatusTip("Add a new data source to the current case")
         self.add_data_source_action.triggered.connect(self._show_add_data_source_dialog)
-        self.add_data_source_action.setEnabled(False) # Initially disabled
+        self.add_data_source_action.setEnabled(False) 
+        
+        # --- File Carver and Timestomping Detection ---
+        self.file_carver = QAction(QIcon(":/icons/add_source.svg"), "File Carver", self) 
+        self.file_carver.setStatusTip("Carve Files in the current case")
+        # self.file_carver.triggered.connect(self._perform_file_carving)
+        self.file_carver.setEnabled(False) 
 
-        # --- ADDED: Placeholder Analysis and Report Actions (for later stages) ---
-        self.analyze_action = QAction(QIcon(":/icons/analyze.svg"), "Analyze Data", self) # Assuming analyze.svg
+        self.timestomping_detection = QAction(QIcon(":/icons/add_source.svg"), "Timestomping Detection", self) 
+        self.timestomping_detection.setStatusTip("Perform timestomping detection")
+        self.timestomping_detection.triggered.connect(self._show_timestamp_analysis)  # ADDED: Connect to handler
+        self.timestomping_detection.setEnabled(False)  # FIXED: Was setting file_carver instead
+
+        # --- Analysis and Report Actions ---
+        self.analyze_action = QAction(QIcon(":/icons/analyze.svg"), "Analyze Data", self) 
         self.analyze_action.setStatusTip("Start analysis on selected data sources")
-        self.analyze_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Analysis not implemented yet."))
-        self.analyze_action.setEnabled(False) # Initially disabled
+        self.analyze_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Analysis not implemented yet.")) #to be implemented
+        self.analyze_action.setEnabled(False) 
 
-        self.report_action = QAction(QIcon(":/icons/report.svg"), "Generate Report", self) # Assuming report.svg
+        self.report_action = QAction(QIcon(":/icons/report.svg"), "Generate Report", self) 
         self.report_action.setStatusTip("Generate a report for the current case")
-        self.report_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Report generation not implemented yet."))
-        self.report_action.setEnabled(False) # Initially disabled
+        self.report_action.triggered.connect(self._show_report_dialog)  # MODIFIED: Connect to actual handler
+        self.report_action.setEnabled(False) 
 
 
     def _createMenuBar(self):
@@ -200,20 +200,14 @@ class MainWindow(QMainWindow):
         # --- File Menu ---
         file_menu = menu_bar.addMenu("&File")
         file_menu.addAction(self.new_case_action)
-        # MODIFIED: Add close_case_action to File menu
         file_menu.addAction(self.open_case_action)
         file_menu.addAction(self.save_case_action)
-        # ADDED: Close Case Action
-        file_menu.addAction(self.close_case_action) # ADDED
+        file_menu.addAction(self.close_case_action) 
         file_menu.addSeparator()
-
-        # --- NEW: Add recent cases submenu here ---
         self.recent_cases_menu = file_menu.addMenu("Recent Cases")
-        self._populate_recent_cases_menu() # Populate it immediately
-
+        self._populate_recent_cases_menu()
         file_menu.addSeparator()
         file_menu.addAction(self.exit_action)
-
 
         # --- Edit Menu ---
         edit_menu = menu_bar.addMenu("&Edit")
@@ -231,7 +225,7 @@ class MainWindow(QMainWindow):
         # --- View Menu ---
         view_menu = menu_bar.addMenu("&View")
 
-        # Action for Toggling Toolbar Visibility
+        # Toggling Toolbar Visibility
         if hasattr(self, 'main_toolbar') and isinstance(self.main_toolbar, QToolBar):
             self.toolbar_action.setChecked(self.main_toolbar.isVisible())
             self.toolbar_action.triggered.connect(self.main_toolbar.setVisible)
@@ -239,8 +233,7 @@ class MainWindow(QMainWindow):
             self.toolbar_action.setEnabled(False)
         view_menu.addAction(self.toolbar_action)
 
-        # Action for Toggling Status Bar Visibility
-        # Using self.statusBar instead of self.statusBar()
+        # Toggling Status Bar Visibility
         if self.statusBar:
             self.statusbar_action.setChecked(self.statusBar.isVisible())
             self.statusbar_action.triggered.connect(self.statusBar.setVisible)
@@ -249,10 +242,7 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self.statusbar_action)
 
         view_menu.addSeparator()
-        # Action for Toggling File List Visibility
-        # will be connected in _init_ui after self.file_list_widget is created
         view_menu.addAction(self.filelist_action)
-
 
         # --- Tools Menu ---
         tools_menu = menu_bar.addMenu("&Tools")
@@ -260,14 +250,16 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(self.file_carver_action)
         tools_menu.addAction(self.disk_imager_action)
         tools_menu.addSeparator()
+        tools_menu.addAction(self.timestomping_detection)  # ADDED: Timestomping to menu
+        tools_menu.addSeparator()
         tools_menu.addAction(self.options_action)
 
-        # --- ADDED: Case Menu (for Add Data Source, Analyze, Report) ---
+        # --- Case Menu (for Add Data Source, Analyze, Report) ---
         case_menu = menu_bar.addMenu("&Case")
-        case_menu.addAction(self.add_data_source_action) # ADDED
-        case_menu.addSeparator() # ADDED
-        case_menu.addAction(self.analyze_action) # ADDED
-        case_menu.addAction(self.report_action) # ADDED
+        case_menu.addAction(self.add_data_source_action) 
+        case_menu.addSeparator() 
+        case_menu.addAction(self.analyze_action) 
+        case_menu.addAction(self.report_action) 
 
         # --- Help Menu ---
         help_menu = menu_bar.addMenu("&Help")
@@ -276,43 +268,34 @@ class MainWindow(QMainWindow):
 
     def _createToolBars(self):
         self.main_toolbar = self.addToolBar("main_toolbar")
-        # ADDED: Set icon size for toolbar
-        self.main_toolbar.setIconSize(QSize(32, 32)) # ADDED
+        self.main_toolbar.setIconSize(QSize(24, 24)) 
         self.main_toolbar.addAction(self.new_case_action)
         self.main_toolbar.addAction(self.open_case_action)
         self.main_toolbar.addAction(self.save_case_action)
-        # ADDED: Close Case Action to Toolbar
-        self.main_toolbar.addAction(self.close_case_action) # ADDED
+        self.main_toolbar.addAction(self.close_case_action) 
         self.main_toolbar.addSeparator()
-
-        # ADDED: Data Source, Analyze, Report actions to Toolbar
-        self.main_toolbar.addAction(self.add_data_source_action) # ADDED
-        self.main_toolbar.addAction(self.analyze_action) # ADDED
-        self.main_toolbar.addAction(self.report_action) # ADDED
-        self.main_toolbar.addSeparator() # ADDED
-
-        self.main_toolbar.addAction(self.undo_action)
-        self.main_toolbar.addAction(self.redo_action)
         self.main_toolbar.addAction(self.copy_action)
         self.main_toolbar.addAction(self.paste_action)
+        self.main_toolbar.addSeparator()
+        # Data Source, Analyze, Report actions to Toolbar
+        self.main_toolbar.addAction(self.add_data_source_action) 
+        self.main_toolbar.addAction(self.analyze_action) 
+        self.main_toolbar.addAction(self.report_action) 
+        self.main_toolbar.addSeparator() 
 
-    # --- REPLACED _createCentralWidget with init_main_layout for comprehensive setup ---
-    # MODIFIED: Renamed to init_main_layout (was _init_ui in previous complete example)
-    # The original method was `_init_ui`. I'm replacing its content with the new layout.
-    def init_main_layout(self): # MODIFIED: Renamed from _init_ui or _createCentralWidget
+    # loads the main_layouy in the central widget of main window
+    def init_main_layout(self): 
         """
         Sets up the central widget and its layout for the main application content,
         including the welcome message, quick action buttons, and recent cases list,
         now incorporating the QSplitter and QTabWidget for data source integration.
         """
-        # MODIFIED: The central widget structure is now based on a splitter and tabs.
-        # This replaces the simple QVBoxLayout directly on central_widget.
 
-        self.central_widget_container = QWidget() # ADDED: New container for splitter
-        self.setCentralWidget(self.central_widget_container) # ADDED
+        self.central_widget_container = QWidget() # New container for splitter
+        self.setCentralWidget(self.central_widget_container)
 
-        # ADDED: QSplitter for resizable left (recent cases) and right (main content) panels
-        self.main_splitter = QSplitter(Qt.Orientation.Horizontal) # ADDED
+        # QSplitter for resizable left (recent cases) and right (main content) panels
+        self.main_splitter = QSplitter(Qt.Orientation.Horizontal) 
         self.central_widget_layout = QHBoxLayout(self.central_widget_container) # ADDED: Use QHBoxLayout for central widget
         self.central_widget_layout.addWidget(self.main_splitter) # ADDED
 
@@ -324,11 +307,11 @@ class MainWindow(QMainWindow):
         self.recent_cases_list_label.setStyleSheet("color: #333; margin-bottom: 5px;") # ADDED
         self.left_panel_layout.addWidget(self.recent_cases_list_label) # ADDED
 
-        # MODIFIED: Your existing recent_cases_list_widget is now placed here
+        
         self.recent_cases_list_widget = QListWidget() # Original
         self.recent_cases_list_widget.setMinimumWidth(180) # ADDED
         self.recent_cases_list_widget.setMaximumWidth(250) # ADDED
-        # MODIFIED: Connect to the new _open_case_from_recent_list method
+        
         self.recent_cases_list_widget.itemDoubleClicked.connect(self._load_selected_recent_case) # Original connection (can coexist)
         self.recent_cases_list_widget.itemClicked.connect(self._open_case_from_recent_list) # ADDED: For single click to load case
         self.left_panel_layout.addWidget(self.recent_cases_list_widget) # ADDED
@@ -361,18 +344,18 @@ class MainWindow(QMainWindow):
         self.data_source_viewer = DataSourceViewerWidget(self.case_manager) # ADDED
         self.main_tab_widget.addTab(self.data_source_viewer, "Data Sources") # ADDED
 
-        # ADDED: 3. Placeholder for future tabs (e.g., File System, Registry, Reports, Timeline)
-        self.file_system_tab = QWidget() # ADDED
-        self.file_system_tab_layout = QVBoxLayout(self.file_system_tab) # ADDED
-        self.file_system_tab_layout.addWidget(QLabel("File System View (Coming Soon)")) # ADDED
-        self.file_system_tab_layout.addStretch(1) # ADDED
-        self.main_tab_widget.addTab(self.file_system_tab, "File System") # ADDED
+        # MODIFIED: 3. File System Tab with actual FileSystemViewerWidget
+        self.file_system_viewer = FileSystemViewerWidget()  # NEW: Create file system viewer
+        self.main_tab_widget.addTab(self.file_system_viewer, "File System")  # MODIFIED: Add actual viewer
 
         self.right_panel_layout.addWidget(self.main_tab_widget) # ADDED
         self.main_splitter.addWidget(self.right_panel_container) # ADDED: Add right panel to splitter
 
         # ADDED: Set initial sizes for the splitter sections (e.g., left 20%, right 80%)
         self.main_splitter.setSizes([200, 800]) # ADDED
+
+        # Connect data source selection to file system viewer
+        self.data_source_viewer.data_source_table.itemSelectionChanged.connect(self._on_data_source_selected)
 
 
     # --- Case Management and UI Update Methods ---
@@ -524,6 +507,8 @@ class MainWindow(QMainWindow):
             self.close_case_action.setEnabled(True) # ADDED
             self.analyze_action.setEnabled(True) # ADDED
             self.report_action.setEnabled(True) # ADDED
+            self.file_carver_action.setEnabled(True)  # ADDED: Enable file carver
+            self.timestomping_detection.setEnabled(True)  # ADDED: Enable timestomping
             # Add other case-specific actions to enable/disable here
             # self.plugins_action.setEnabled(True) # if you have these actions
             # self.settings_action.setEnabled(True)
@@ -564,6 +549,8 @@ class MainWindow(QMainWindow):
         self.close_case_action.setEnabled(False) # ADDED
         self.analyze_action.setEnabled(False) # ADDED
         self.report_action.setEnabled(False) # ADDED
+        self.file_carver_action.setEnabled(False)  # ADDED
+        self.timestomping_detection.setEnabled(False)  # ADDED
         # Add other case-specific actions to disable here
         # self.plugins_action.setEnabled(False)
         # self.settings_action.setEnabled(False)
@@ -573,6 +560,8 @@ class MainWindow(QMainWindow):
         # Ensure main_tab_widget and data_source_viewer are initialized in init_main_layout
         if hasattr(self, 'data_source_viewer'): # Check if it exists before using
              self.data_source_viewer.set_current_case(None) # ADDED: Clear viewer content
+        if hasattr(self, 'file_system_viewer'):  # ADDED: Clear file system viewer
+            self.file_system_viewer.clear_view()
         if hasattr(self, 'main_tab_widget'): # Check if it exists before using
             self.main_tab_widget.setTabEnabled(1, False) # ADDED: Data Sources tab
             self.main_tab_widget.setTabEnabled(2, False) # ADDED: File System tab (and any others)
@@ -603,14 +592,93 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.critical(self, "Error", "No case is currently open to add data source.")
 
+    # NEW: Handle data source selection
+    def _on_data_source_selected(self):
+        """Handle when a data source is selected in the data source viewer"""
+        selected_items = self.data_source_viewer.data_source_table.selectedItems()
+        if selected_items:
+            # Get the selected row
+            row = selected_items[0].row()
+            # Get the path from column 2
+            path_item = self.data_source_viewer.data_source_table.item(row, 2)
+            if path_item:
+                source_path = path_item.text()
+                source_type_item = self.data_source_viewer.data_source_table.item(row, 1)
+                source_type = source_type_item.text() if source_type_item else ""
+                
+                # If it's a disk image, enable parsing in file system viewer
+                if source_type == "Disk Image" and os.path.exists(source_path):
+                    self.file_system_viewer.set_disk_image(source_path)
+                    # Optionally switch to file system tab
+                    # self.main_tab_widget.setCurrentIndex(2)
+
+    # NEW: Show file carver dialog
+    def _show_file_carver_dialog(self):
+        """Show file carver dialog or functionality"""
+        if not self.current_case_path:
+            QMessageBox.warning(self, "No Case Open", "Please open a case before using file carver.")
+            return
+            
+        # Get selected data source
+        selected_items = self.data_source_viewer.data_source_table.selectedItems()
+        image_path = None
+        
+        if selected_items:
+            row = selected_items[0].row()
+            path_item = self.data_source_viewer.data_source_table.item(row, 2)
+            type_item = self.data_source_viewer.data_source_table.item(row, 1)
+            
+            if path_item and type_item and type_item.text() == "Disk Image":
+                image_path = path_item.text()
+                
+        # Import and show dialog
+        from gui.dialogs.file_carver_dialog import FileCarverDialog
+        dialog = FileCarverDialog(self, image_path, self.current_case_path)
+        dialog.exec()
+
+    # NEW: Show timestamp analysis
+    def _show_timestamp_analysis(self):
+        """Show timestamp analysis dialog or functionality"""
+        if not self.current_case_path:
+            QMessageBox.warning(self, "No Case Open", "Please open a case before using timestamp analysis.")
+            return
+            
+        # Get selected data source
+        selected_items = self.data_source_viewer.data_source_table.selectedItems()
+        image_path = None
+        
+        if selected_items:
+            row = selected_items[0].row()
+            path_item = self.data_source_viewer.data_source_table.item(row, 2)
+            type_item = self.data_source_viewer.data_source_table.item(row, 1)
+            
+            if path_item and type_item and type_item.text() == "Disk Image":
+                image_path = path_item.text()
+                
+        # Import and show dialog
+        from gui.dialogs.timestamp_analysis_dialog import TimestampAnalysisDialog
+        dialog = TimestampAnalysisDialog(self, image_path)
+        dialog.exec()
+
+    # NEW: Show report generation dialog
+    def _show_report_dialog(self):
+        """Show report generation dialog"""
+        if not self.current_case_path:
+            QMessageBox.warning(self, "No Case Open", "Please open a case before generating a report.")
+            return
+            
+        # Import and show dialog
+        from gui.dialogs.report_generation_dialog import ReportGenerationDialog
+        dialog = ReportGenerationDialog(self, self.current_case_path)
+        dialog.exec()
 
     def _show_about_dialog(self):
         # ADDED: Basic About Dialog content (can be customized)
         QMessageBox.about(self, "About ByteProbe",
                           "<b>ByteProbe Forensic Tool</b><br>"
                           "Version 0.1<br>"
-                          "A simple digital forensics application.<br>"
-                          "Developed by [Your Name/Team Name]<br><br>"
+                          "A digital forensics application for disk analysis.<br>"
+                          "Developed for FYP<br><br>"
                           "© 2024 All rights reserved.")
 
 
@@ -632,11 +700,3 @@ class MainWindow(QMainWindow):
         """Handler for case creation from the initial modeless dialog."""
         # This will call the main _handle_case_created, which now expects a dictionary
         self._handle_case_created(case_details_dict) # ADDED
-
-
-# if __name__ == "__main__":
-#     app = QApplication([])
-#     # app.setStyle('Windows')
-# #     window = MainWindow()
-# #     window.show()
-# #     sys.exit(app.exec())

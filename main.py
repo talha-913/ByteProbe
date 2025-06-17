@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     # --- Splash Screen Management ---
     splash = SplashScreen(
-        logo_path=r"assets\icons\open_case.svg",
+        logo_path=r"assets\images\BP.png",
         messages=[
             "Starting up components...",
             "Loading user configurations...",

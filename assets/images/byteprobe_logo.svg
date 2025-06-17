@@ -1,0 +1,13 @@
+<svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Probe outline with B inside -->
+  <g>
+    <!-- Probe body (outline only) -->
+    <circle cx="40" cy="40" r="25" fill="none" stroke="#2c3e50" stroke-width="3"/>
+    
+    <!-- Probe tip/needle -->
+    <line x1="65" y1="40" x2="85" y2="40" stroke="#2c3e50" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Letter "B" inside the probe -->
+    <text x="40" y="50" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#2c3e50" text-anchor="middle">B</text>
+  </g>
+</svg>

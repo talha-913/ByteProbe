@@ -6,8 +6,8 @@ from datetime import datetime
 # Define constants for case structure
 APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES_BASE_DIR_NAME = "cases"
-RECENT_CASES_FILE = "recent_cases.json" # Stored at the app's root level
-CASE_METADATA_DB_NAME = "case_metadata.db" # Name of the SQLite DB file within each case folder
+RECENT_CASES_FILE = "recent_cases.json" 
+CASE_METADATA_DB_NAME = "case_metadata.db" 
 
 class CaseManager:
     """
@@ -20,13 +20,13 @@ class CaseManager:
         self.recent_cases_path = os.path.join(APP_ROOT, RECENT_CASES_FILE)
 
     def _initialize_case_db(self, db_path):
-        """Initializes the SQLite database schema for a new case, including data sources table."""
+        """Initialize the SQLite database schema for a new case, including data sources table."""
         conn = None
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
-            # Table for Case Details (already exists)
+            # Table for Case Details 
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS case_details (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
-# Import the CaseManager from our core module
+# Import the CaseManager from core module
 from core.case_manager import CaseManager, CASES_BASE_DIR_NAME, APP_ROOT
 
 class CaseCreationDialog(QDialog):
@@ -14,14 +14,13 @@ class CaseCreationDialog(QDialog):
     A dialog for creating a new forensic case.
     Collects essential and optional case details.
     """
-    # Signal emitted when a new case is successfully created
-    # MODIFIED: Change signal to emit a dictionary
-    case_created = pyqtSignal(dict) # Emits a dictionary with 'path' and 'name'
+    
+    case_created = pyqtSignal(dict) 
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Create New Case")
-        self.setGeometry(200, 200, 600, 450) # x, y, width, height
+        self.setGeometry(200, 200, 600, 450) 
 
         self.case_manager = CaseManager()
         self.selected_output_dir = os.path.join(APP_ROOT, CASES_BASE_DIR_NAME) # Default output dir

@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QGroupBox
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QSize
-from PyQt6.QtGui import QGuiApplication, QPalette, QBrush, QPixmap # New for background image
+from PyQt6.QtGui import QGuiApplication, QPalette, QBrush, QPixmap
 
 
 
@@ -31,7 +31,7 @@ class AddDataSourceDialog(QDialog):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setContentsMargins(10, 10, 10, 10)
 
         # --- Input Fields Group Box ---
         input_group_box = QGroupBox("Data Source Details")
@@ -44,7 +44,7 @@ class AddDataSourceDialog(QDialog):
         input_grid_layout.setHorizontalSpacing(10)
         input_grid_layout.setVerticalSpacing(10)
 
-        # --- Row 1: Source Type ---
+        # ---Source Type ---
         type_label = QLabel("Source Type:")
         type_label.setObjectName("DialogLabel") # Object name for label styling
         type_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -59,7 +59,7 @@ class AddDataSourceDialog(QDialog):
         input_grid_layout.addWidget(type_label, 0, 0)
         input_grid_layout.addLayout(type_combo_layout, 0, 1)
 
-        # --- Row 2: Path Selection (Path Input + Browse Button) ---
+        # --- Path Selection (Path Input + Browse Button) ---
         path_label = QLabel("Path:")
         path_label.setObjectName("DialogLabel") # Object name for label styling
         path_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -68,7 +68,7 @@ class AddDataSourceDialog(QDialog):
         
         self.browse_button = QPushButton("Browse Drive...")
         self.browse_button.clicked.connect(self._browse_path)
-        # REMOVED: self.browse_button.setFixedSize(120, 30) - now uses default size
+        
 
         path_input_layout = QHBoxLayout()
         path_input_layout.addWidget(self.path_input)
@@ -77,9 +77,9 @@ class AddDataSourceDialog(QDialog):
         input_grid_layout.addWidget(path_label, 1, 0)
         input_grid_layout.addLayout(path_input_layout, 1, 1)
 
-        # --- Row 3: Name ---
+        # --- Name ---
         name_label = QLabel("Name:")
-        name_label.setObjectName("DialogLabel") # Object name for label styling
+        name_label.setObjectName("DialogLabel") 
         name_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Enter a name for the source (optional)")
@@ -91,9 +91,9 @@ class AddDataSourceDialog(QDialog):
         input_grid_layout.addWidget(name_label, 2, 0)
         input_grid_layout.addLayout(name_input_layout, 2, 1)
 
-        # --- Row 4: Description ---
+        # --- Description ---
         description_label = QLabel("Description:")
-        description_label.setObjectName("DialogLabel") # Object name for label styling
+        description_label.setObjectName("DialogLabel") 
         description_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
         self.description_input = QTextEdit()
         self.description_input.setPlaceholderText("Brief description (optional, multiple lines supported)")
@@ -108,13 +108,18 @@ class AddDataSourceDialog(QDialog):
         
         input_group_box.setLayout(input_grid_layout)
         main_layout.addWidget(input_group_box)
-        main_layout.addStretch(1)
+        
+        # Create a widget for the empty area with background image
+        background_widget = QLabel()
+        background_widget.setObjectName("BackgroundWidget")
+        background_widget.setMinimumHeight(100)  # Ensure minimum space for the background
+        main_layout.addWidget(background_widget, 1)  # stretch factor of 1
 
         # --- Buttons ---
         button_layout = QHBoxLayout()
         self.add_button = QPushButton("Add Source")
         self.add_button.clicked.connect(self._add_source)
-        # REMOVED: self.add_button.setFixedSize(100, 35) - now uses default size
+        
         self.add_button.setStyleSheet("padding: 8px 15px;")
 
         self.cancel_button = QPushButton("Cancel")
@@ -134,16 +139,21 @@ class AddDataSourceDialog(QDialog):
         """Applies QSS for background image and other styling."""
         style_sheet = """
             QDialog#AddDataSourceDialog {
-                background-image: url(:/images/dialog_bg.png); /* Path to your background image */
+                background-color: #f0f0f0; /* Light background for main dialog */
+            }
+            QLabel#BackgroundWidget {
+                background-image: url("assets/images/Patterns.png"); 
                 background-repeat: no-repeat;
                 background-position: center;
-                background-size: cover; /* Cover the entire dialog area */
+                background-size: cover; /* Cover the widget area */
+                border: none;
             }
             QGroupBox#DataSourceDetailsGroupBox {
                 border: 1px solid #cccccc; /* Light border */
                 border-radius: 5px; /* Rounded corners */
                 margin-top: 10px; /* Space for title */
                 padding-top: 15px; /* Space inside for content */
+                background-color: white; /* Clean white background */
             }
             QGroupBox#DataSourceDetailsGroupBox::title {
                 subcontrol-origin: margin;
@@ -155,6 +165,21 @@ class AddDataSourceDialog(QDialog):
             QLabel#DialogLabel {
                 color: #555555; /* Slightly muted label color */
                 font-size: 10pt;
+            }
+            QLineEdit {
+                border: 1px solid #cccccc;
+                border-radius: 3px;
+                padding: 5px;
+            }
+            QTextEdit {
+                border: 1px solid #cccccc;
+                border-radius: 3px;
+                padding: 5px;
+            }
+            QComboBox {
+                border: 1px solid #cccccc;
+                border-radius: 3px;
+                padding: 5px;
             }
         """
         self.setStyleSheet(style_sheet)
@@ -177,7 +202,7 @@ class AddDataSourceDialog(QDialog):
         source_type = self.source_type_combo.currentText()
         if source_type == "Disk Image":
             self.browse_button.setText("Browse File...")
-            self.path_input.setPlaceholderText("Select disk image file (e.g., .dd, .e01)...")
+            self.path_input.setPlaceholderText("Select disk image file (e.g., .dd, .raw)...")
         elif source_type == "Logical Drive":
             self.browse_button.setText("Browse Drive...")
             self.path_input.setPlaceholderText("Select a logical drive (e.g., C:\\, D:\\) or a raw device path...")
