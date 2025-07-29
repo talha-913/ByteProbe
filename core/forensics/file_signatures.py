@@ -79,14 +79,14 @@ FILE_SIGNATURES = {
     'exe': FileSignature(
         'exe',
         'Windows Executable',
-        header=b'MZ',  # DOS header
+        header=b'MZ',  
         footer=None,
         max_size=500 * 1024 * 1024
     ),
     'txt': FileSignature(
         'txt',
         'Plain Text File',
-        header=None,  # No specific header
+        header=None,  
         footer=None,
         max_size=10 * 1024 * 1024
     )
@@ -96,7 +96,7 @@ FILE_SIGNATURES = {
 ALTERNATIVE_HEADERS = {
     'gif': [b'GIF87a', b'GIF89a'],
     'jpg': [b'\xFF\xD8\xFF\xE0', b'\xFF\xD8\xFF\xE1', b'\xFF\xD8\xFF\xE8'],
-    'docx': [b'\x50\x4B\x03\x04\x14\x00\x06\x00'],  # More specific Office signature
+    'docx': [b'\x50\x4B\x03\x04\x14\x00\x06\x00'],  
     'xlsx': [b'\x50\x4B\x03\x04\x14\x00\x06\x00']
 }
 

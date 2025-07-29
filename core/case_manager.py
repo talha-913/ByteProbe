@@ -3,7 +3,6 @@ import json
 import sqlite3
 from datetime import datetime
 
-# Define constants for case structure
 APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES_BASE_DIR_NAME = "cases"
 RECENT_CASES_FILE = "recent_cases.json" 
@@ -41,7 +40,7 @@ class CaseManager:
                 )
             ''')
 
-            # --- NEW: Table for Data Sources ---
+            # Table for Data Sources ---
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS data_sources (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -101,7 +101,6 @@ class NTFSTimestampAnalyzer(ITimestampAnalyzer):
     def _check_timestamp_order(self, entry: FileEntry) -> Optional[Dict[str, Any]]:
         """Check for logical timestamp order"""
         # Normal order: created <= modified <= accessed
-        # But accessed can be disabled in NTFS
         
         if entry.created_time and entry.modified_time:
             if entry.created_time > entry.modified_time:
@@ -116,7 +115,6 @@ class NTFSTimestampAnalyzer(ITimestampAnalyzer):
     def _check_timestamp_precision(self, entry: FileEntry) -> Optional[Dict[str, Any]]:
         """Check timestamp precision patterns"""
         # NTFS timestamps have 100-nanosecond precision
-        # Many timestomping tools only set to second precision
         
         timestamps = [entry.created_time, entry.modified_time, entry.accessed_time]
         timestamps = [ts for ts in timestamps if ts]

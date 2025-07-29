@@ -19,7 +19,8 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QTabWidget,    # For multi-tab interface (Overview, Data Sources, etc.)
     QSplitter,      # For resizable panels (Recent Cases | Main Content)
-    QListWidgetItem
+    QListWidgetItem,
+    QTreeWidget
 )
 
 from . import resources_rc
@@ -64,10 +65,13 @@ class MainWindow(QMainWindow):
 
         # --- Call initial UI updates ---
         self._update_status_bar() # initial status bar message
-        self._load_recent_cases_display() # Load and display recent cases on startup
+        self._populate_recent_cases_menu() # Update recent cases menu
 
         # Set initial UI state for no case open 
         self._reset_ui_for_no_case()
+        
+        # Apply global stylesheet
+        self._apply_global_stylesheet()
 
 
     def _createActions(self):
@@ -86,11 +90,15 @@ class MainWindow(QMainWindow):
         self.save_case_action = QAction(QIcon(":/icons/save_case"), "&Save Case", self)
         self.save_case_action.setShortcut("Ctrl+S")
         self.save_case_action.setStatusTip("Save the current forensics case")
-        self.save_case_action.triggered.connect(lambda: QMessageBox.information(self, "Info", "Save Case not implemented yet.")) #to be implemented
+        self.save_case_action.triggered.connect(self._save_case)  # MODIFIED: Connect to actual handler
 
         self.close_case_action = QAction(QIcon(":/icons/close_case"), "Close Case", self) 
         self.close_case_action.setStatusTip("Close the current forensic case")
         self.close_case_action.triggered.connect(self._close_current_case)
+        
+        self.delete_case_action = QAction(QIcon(":/icons/delete"), "Delete Case...", self)
+        self.delete_case_action.setStatusTip("Delete an existing case")
+        self.delete_case_action.triggered.connect(self._delete_case)
 
         self.exit_action = QAction("E&xit", self)
         self.exit_action.setStatusTip("Exit the application")
@@ -203,6 +211,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction(self.open_case_action)
         file_menu.addAction(self.save_case_action)
         file_menu.addAction(self.close_case_action) 
+        file_menu.addAction(self.delete_case_action)  # ADDED: Delete case option
         file_menu.addSeparator()
         self.recent_cases_menu = file_menu.addMenu("Recent Cases")
         self._populate_recent_cases_menu()
@@ -279,6 +288,8 @@ class MainWindow(QMainWindow):
         self.main_toolbar.addSeparator()
         # Data Source, Analyze, Report actions to Toolbar
         self.main_toolbar.addAction(self.add_data_source_action) 
+        self.main_toolbar.addAction(self.file_carver_action)  # ADDED: File carver to toolbar
+        self.main_toolbar.addAction(self.timestomping_detection)  # ADDED: Timestomping to toolbar
         self.main_toolbar.addAction(self.analyze_action) 
         self.main_toolbar.addAction(self.report_action) 
         self.main_toolbar.addSeparator() 
@@ -294,70 +305,90 @@ class MainWindow(QMainWindow):
         self.central_widget_container = QWidget() # New container for splitter
         self.setCentralWidget(self.central_widget_container)
 
-        # QSplitter for resizable left (recent cases) and right (main content) panels
+        # QSplitter for resizable left (file hierarchy) and right (main content) panels
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal) 
         self.central_widget_layout = QHBoxLayout(self.central_widget_container) # ADDED: Use QHBoxLayout for central widget
         self.central_widget_layout.addWidget(self.main_splitter) # ADDED
 
-        # ADDED: Left Panel Container (for Recent Cases)
-        self.left_panel_container = QWidget() # ADDED
-        self.left_panel_layout = QVBoxLayout(self.left_panel_container) # ADDED
-        self.recent_cases_list_label = QLabel("Recent Cases") # ADDED
-        self.recent_cases_list_label.setFont(QFont("Arial", 12, QFont.Weight.Bold)) # ADDED FONT
-        self.recent_cases_list_label.setStyleSheet("color: #333; margin-bottom: 5px;") # ADDED
-        self.left_panel_layout.addWidget(self.recent_cases_list_label) # ADDED
+        # MODIFIED: Left Panel Container (for File Hierarchy)
+        self.left_panel_container = QWidget() 
+        self.left_panel_layout = QVBoxLayout(self.left_panel_container) 
+        self.file_hierarchy_label = QLabel("File Explorer") # MODIFIED: Changed from Recent Cases
+        self.file_hierarchy_label.setFont(QFont("Arial", 12, QFont.Weight.Bold)) 
+        self.file_hierarchy_label.setStyleSheet("color: #333; margin-bottom: 5px;") 
+        self.left_panel_layout.addWidget(self.file_hierarchy_label) 
 
         
-        self.recent_cases_list_widget = QListWidget() # Original
-        self.recent_cases_list_widget.setMinimumWidth(180) # ADDED
-        self.recent_cases_list_widget.setMaximumWidth(250) # ADDED
+        # MODIFIED: Create a mini file system viewer for the left panel
+        from gui.widgets.file_system_viewer import FileSystemViewerWidget
+        self.left_file_tree = QTreeWidget()  # Simple tree for file hierarchy
+        self.left_file_tree.setHeaderLabel("No disk image loaded")
+        self.left_file_tree.setMinimumWidth(180) 
+        self.left_file_tree.setMaximumWidth(300) 
         
-        self.recent_cases_list_widget.itemDoubleClicked.connect(self._load_selected_recent_case) # Original connection (can coexist)
-        self.recent_cases_list_widget.itemClicked.connect(self._open_case_from_recent_list) # ADDED: For single click to load case
-        self.left_panel_layout.addWidget(self.recent_cases_list_widget) # ADDED
+        self.left_panel_layout.addWidget(self.left_file_tree) 
 
-        self.main_splitter.addWidget(self.left_panel_container) # ADDED: Add left panel to splitter
+        self.main_splitter.addWidget(self.left_panel_container) # Add left panel to splitter
 
-        # ADDED: Right Panel Container (for Main Content - Tabs)
-        self.right_panel_container = QWidget() # ADDED
-        self.right_panel_layout = QVBoxLayout(self.right_panel_container) # ADDED
+        # Right Panel Container (for Main Content - Tabs)
+        self.right_panel_container = QWidget() 
+        self.right_panel_layout = QVBoxLayout(self.right_panel_container) 
 
-        # ADDED: QTabWidget for main content
-        self.main_tab_widget = QTabWidget() # ADDED
-        self.main_tab_widget.setFont(QFont("Arial", 10)) # ADDED FONT
+        # QTabWidget for main content
+        self.main_tab_widget = QTabWidget() 
+        self.main_tab_widget.setFont(QFont("Arial", 10)) 
 
-        # ADDED: 1. Overview Tab (Placeholder for general information/welcome)
-        self.overview_tab = QWidget() # ADDED
-        overview_layout = QVBoxLayout(self.overview_tab) # ADDED
-        # MODIFIED: The welcome_label content is now part of the overview tab
+        # 1. Overview Tab (Placeholder for general information/welcome)
+        self.overview_tab = QWidget() 
+        overview_layout = QVBoxLayout(self.overview_tab) 
+        # The welcome_label content is now part of the overview tab
         welcome_label_content = ("<h2>Welcome to ByteProbe!</h2>"
-                                 "<p>Select an action from the toolbar/menu or open an existing case from the left panel.</p>"
+                                 "<p>Select an action from the toolbar/menu or open an existing case.</p>"
                                  "<p>To begin, create a <b>New Case</b> or <b>Open Case</b>.</p>")
         self.welcome_label = QLabel(welcome_label_content) # Re-purposed/added this label for the tab
-        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter) # ADDED
-        # self.welcome_label.setStyleSheet("font-size: 24px; font-weight: bold; padding: 20px;") # Original style, might need adjustment
-        overview_layout.addWidget(self.welcome_label) # ADDED
-        overview_layout.addStretch(1) # ADDED
-        self.main_tab_widget.addTab(self.overview_tab, "Overview") # ADDED
+        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+        overview_layout.addWidget(self.welcome_label) 
+        overview_layout.addStretch(1) 
+        self.main_tab_widget.addTab(self.overview_tab, "Overview") 
 
-        # ADDED: 2. Data Sources Tab - Encapsulated in DataSourceViewerWidget
-        self.data_source_viewer = DataSourceViewerWidget(self.case_manager) # ADDED
-        self.main_tab_widget.addTab(self.data_source_viewer, "Data Sources") # ADDED
+        # 2. Data Sources Tab - Encapsulated in DataSourceViewerWidget
+        self.data_source_viewer = DataSourceViewerWidget(self.case_manager) 
+        self.main_tab_widget.addTab(self.data_source_viewer, "Data Sources") 
 
-        # MODIFIED: 3. File System Tab with actual FileSystemViewerWidget
-        self.file_system_viewer = FileSystemViewerWidget()  # NEW: Create file system viewer
-        self.main_tab_widget.addTab(self.file_system_viewer, "File System")  # MODIFIED: Add actual viewer
+        # 3. File System Tab with actual FileSystemViewerWidget
+        self.file_system_viewer = FileSystemViewerWidget()  # Create file system viewer
+        self.file_system_viewer.main_window = self  # Add reference to main window
+        self.main_tab_widget.addTab(self.file_system_viewer, "File System")  
+        
+        # Don't create carving and timestamp tabs here - they'll be added dynamically
+        
+        # Make tabs closable
+        self.main_tab_widget.setTabsClosable(True)
+        self.main_tab_widget.tabCloseRequested.connect(self.close_tab)  
 
-        self.right_panel_layout.addWidget(self.main_tab_widget) # ADDED
-        self.main_splitter.addWidget(self.right_panel_container) # ADDED: Add right panel to splitter
+        self.right_panel_layout.addWidget(self.main_tab_widget) 
+        self.main_splitter.addWidget(self.right_panel_container) # Add right panel to splitter
 
-        # ADDED: Set initial sizes for the splitter sections (e.g., left 20%, right 80%)
-        self.main_splitter.setSizes([200, 800]) # ADDED
+        # Set initial sizes for the splitter sections (e.g., left 20%, right 80%)
+        self.main_splitter.setSizes([250, 800]) 
 
         # Connect data source selection to file system viewer
         self.data_source_viewer.data_source_table.itemSelectionChanged.connect(self._on_data_source_selected)
+        
+        # ADDED: Connect file system viewer to update left panel tree
+        self.file_system_viewer.entry_found = self._update_left_file_tree
 
 
+    # ADDED: Update left file tree when file system is parsed
+    def _update_left_file_tree(self, entry):
+        """Update the left panel file tree with parsed entries"""
+        if hasattr(self, 'left_file_tree') and entry:
+            # This will be called by the file system viewer
+            # For now, just update the header to show it's loaded
+            if self.left_file_tree.headerItem().text(0) == "No disk image loaded":
+                self.left_file_tree.clear()
+                self.left_file_tree.setHeaderLabel("File System")
+                
     # --- Case Management and UI Update Methods ---
     def _update_status_bar(self):
         """Updates the status bar and the central welcome label based on the current case."""
@@ -395,35 +426,11 @@ class MainWindow(QMainWindow):
         if created_case_path and os.path.exists(created_case_path): # Added os.path.exists check as a safeguard
             QMessageBox.information(self, "Case Created", f"Case '{case_name_for_display}' created successfully!")
             self._update_status_bar() # Update status bar based on case details
-            self._load_recent_cases_display() # Update recent cases list
             self._populate_recent_cases_menu() # Re-populate menu
             # Automatically load the newly created case and update UI
             self._load_case_and_update_ui(created_case_path)
         else:
             QMessageBox.critical(self, "Error", f"Failed to open or verify case '{case_name_for_display}'. It might have failed during creation.")
-
-
-    def _load_recent_cases_display(self):
-        """Loads recent cases from CaseManager and populates the QListWidget."""
-        self.recent_cases_list_widget.clear()
-        recent_cases = self.case_manager.get_recent_cases()
-        if not recent_cases:
-            self.recent_cases_list_widget.addItem("No recent cases found.")
-            # Make the placeholder item unselectable
-            self.recent_cases_list_widget.item(0).setFlags(Qt.ItemFlag.NoItemFlags)
-            return
-
-        for case in recent_cases:
-            # MODIFIED: Store path in UserRole for easier retrieval
-            item = QListWidgetItem(case['name']) # Display case name
-            item.setData(Qt.ItemDataRole.UserRole, case['path']) # Store actual path
-            self.recent_cases_list_widget.addItem(item)
-
-    # ADDED: Method to handle clicking on a recent case list item
-    def _open_case_from_recent_list(self, item):
-        case_path = item.data(Qt.ItemDataRole.UserRole)
-        if case_path: # Ensure an actual path was stored
-            self._load_case_and_update_ui(case_path) # ADDED: Use the new centralized load method
 
 
     def _populate_recent_cases_menu(self):
@@ -440,28 +447,6 @@ class MainWindow(QMainWindow):
                 action.triggered.connect(lambda checked, path=case_info['path']: self._load_case_and_update_ui(path)) # MODIFIED: Use the new centralized load method
         else:
             print("Warning: Recent Cases menu not initialized. Cannot populate.")
-
-
-    def _load_selected_recent_case(self, item):
-        """Handles double-clicking an item in the recent cases list."""
-        # This method can technically coexist with _open_case_from_recent_list,
-        # but _open_case_from_recent_list is now the primary single-click handler.
-        # Keeping this for minimal modification, but consider if both are needed.
-        text = item.text()
-        if "No recent cases found" in text:
-            return # Do nothing if the placeholder is clicked
-
-        try:
-            # Extract path from the item's text (e.g., "Case Name (C:/path/to/case)")
-            # This extraction might be less reliable if 'name' itself contains parentheses.
-            # Using item.data(Qt.ItemDataRole.UserRole) as done in _open_case_from_recent_list is better.
-            case_path = item.data(Qt.ItemDataRole.UserRole) # MODIFIED: Use UserRole data
-            if case_path:
-                self._load_case_and_update_ui(case_path) # ADDED: Use the new centralized load method
-            else:
-                 QMessageBox.warning(self, "Invalid Path", "Could not retrieve case path from selected item.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"An error occurred while loading recent case: {e}")
 
     # MODIFIED: Renamed _open_existing_case to _open_case_from_dialog
     def _open_case_from_dialog(self): # MODIFIED: Renamed method
@@ -518,19 +503,158 @@ class MainWindow(QMainWindow):
             # ADDED: Enable Data Sources tab and set current case for the viewer
             # Ensure these widgets are created in init_main_layout
             self.main_tab_widget.setTabEnabled(1, True) # Data Sources tab (index 1)
-            self.main_tab_widget.setTabEnabled(2, True) # File System tab (index 2, placeholder)
+            self.main_tab_widget.setTabEnabled(2, True) # File System tab (index 2)
+            self.main_tab_widget.setTabEnabled(3, True) # File Carving tab
+            self.main_tab_widget.setTabEnabled(4, True) # Timestamp Analysis tab
             self.data_source_viewer.set_current_case(self.current_case_path) # ADDED: Pass the case path to the viewer
             self.main_tab_widget.setCurrentIndex(1) # ADDED: Switch to Data Sources tab by default
+            
+            # Update overview tab
+            self._update_overview_tab(case_metadata)
         else:
             self.statusBar.showMessage("Failed to load case.")
             self._reset_ui_for_no_case() # ADDED: Call reset if loading fails
 
 
+    # ADDED: Save case method
+    def _save_case(self):
+        """Save the current case"""
+        if not self.current_case_path:
+            QMessageBox.information(self, "No Case", "No case is currently open.")
+            return
+            
+        # The case is already saved automatically in SQLite
+        # This is just a confirmation
+        QMessageBox.information(
+            self, 
+            "Case Saved", 
+            f"Case data is automatically saved.\nCase location: {self.current_case_path}"
+        )
+
+    # ADDED: Delete case method
+    def _delete_case(self):
+        """Delete an existing case"""
+        # Get list of recent cases to choose from
+        recent_cases = self.case_manager.get_recent_cases()
+        if not recent_cases:
+            QMessageBox.information(self, "No Cases", "No cases found to delete.")
+            return
+            
+        # Create a simple selection dialog
+        from PyQt6.QtWidgets import QInputDialog
+        case_names = [case['name'] for case in recent_cases]
+        case_name, ok = QInputDialog.getItem(
+            self, 
+            "Delete Case", 
+            "Select a case to delete:", 
+            case_names, 
+            0, 
+            False
+        )
+        
+        if ok and case_name:
+            # Find the case path
+            case_path = None
+            for case in recent_cases:
+                if case['name'] == case_name:
+                    case_path = case['path']
+                    break
+                    
+            if case_path:
+                # Confirm deletion
+                reply = QMessageBox.question(
+                    self,
+                    "Confirm Deletion",
+                    f"Are you sure you want to delete the case '{case_name}'?\n\n"
+                    f"Path: {case_path}\n\n"
+                    "This action cannot be undone!",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    try:
+                        # If it's the current case, close it first
+                        if self.current_case_path == case_path:
+                            self._reset_ui_for_no_case()
+                            
+                        # Delete the case directory
+                        import shutil
+                        shutil.rmtree(case_path)
+                        
+                        # Update recent cases
+                        self._populate_recent_cases_menu()
+                        
+                        QMessageBox.information(
+                            self,
+                            "Case Deleted",
+                            f"Case '{case_name}' has been deleted successfully."
+                        )
+                    except Exception as e:
+                        QMessageBox.critical(
+                            self,
+                            "Deletion Error",
+                            f"Failed to delete case:\n{str(e)}"
+                        )
+
+    def _update_overview_tab(self, case_metadata):
+        """Update the overview tab with case information"""
+        if hasattr(self, 'case_name_label'):
+            self.case_name_label.setText(case_metadata.get('case_name', 'Unknown'))
+            self.case_type_label.setText(case_metadata.get('case_type', 'N/A'))
+            self.investigator_label.setText(case_metadata.get('investigator_name', 'N/A'))
+            
+            # Format creation date
+            created = case_metadata.get('created', '')
+            if created:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(created)
+                    self.created_label.setText(dt.strftime("%Y-%m-%d %H:%M"))
+                except:
+                    self.created_label.setText(created)
+            else:
+                self.created_label.setText('N/A')
+                
+            # Update activity summary
+            self._update_activity_summary()
+            
+    def _update_activity_summary(self):
+        """Update the activity summary in overview tab"""
+        if hasattr(self, 'activity_text') and self.current_case_path:
+            activities = []
+            
+            # Check data sources
+            sources = self.case_manager.get_data_sources(self.current_case_path)
+            if sources:
+                activities.append(f"• {len(sources)} data source(s) added")
+                
+            # Check file system parsing
+            if os.path.exists(os.path.join(self.current_case_path, ".file_system_parsed")):
+                activities.append("• File system parsed")
+                
+            # Check carved files
+            carved_dir = os.path.join(self.current_case_path, "carved_files")
+            if os.path.exists(carved_dir):
+                file_count = len([f for f in os.listdir(carved_dir) if os.path.isfile(os.path.join(carved_dir, f))])
+                if file_count > 0:
+                    activities.append(f"• {file_count} files carved")
+                    
+            # Check timestamp analysis
+            if os.path.exists(os.path.join(self.current_case_path, "timestamp_analysis.json")):
+                activities.append("• Timestamp analysis performed")
+                
+            if activities:
+                self.activity_text.setPlainText("Case Activities:\n\n" + "\n".join(activities))
+            else:
+                self.activity_text.setPlainText("No activities recorded yet.")
+
     # ADDED: Close Case Method
     def _close_current_case(self):
         if self.current_case_path:
             reply = QMessageBox.question(self, 'Close Case',
-                                         f"Are you sure you want to close '{os.path.basename(self.current_case_path)}'?",
+                                         f"Are you sure you want to close '{os.path.basename(self.current_case_path)}'?\n\n"
+                                         "All data is automatically saved.",
                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                          QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:
@@ -562,10 +686,24 @@ class MainWindow(QMainWindow):
              self.data_source_viewer.set_current_case(None) # ADDED: Clear viewer content
         if hasattr(self, 'file_system_viewer'):  # ADDED: Clear file system viewer
             self.file_system_viewer.clear_view()
+        if hasattr(self, 'left_file_tree'):  # Clear left file tree
+            self.left_file_tree.clear()
+            self.left_file_tree.setHeaderLabel("No disk image loaded")
         if hasattr(self, 'main_tab_widget'): # Check if it exists before using
-            self.main_tab_widget.setTabEnabled(1, False) # ADDED: Data Sources tab
-            self.main_tab_widget.setTabEnabled(2, False) # ADDED: File System tab (and any others)
-            self.main_tab_widget.setCurrentIndex(0) # ADDED: Go back to Overview tab
+            self.main_tab_widget.setTabEnabled(1, False) # Data Sources tab
+            self.main_tab_widget.setTabEnabled(2, False) # File System tab
+            # Remove any dynamically added tabs
+            for i in range(self.main_tab_widget.count() - 1, 2, -1):  # Start from end, go to index 3
+                self.main_tab_widget.removeTab(i)
+            self.main_tab_widget.setCurrentIndex(0) # Go back to Overview tab
+            
+        # Reset overview tab
+        if hasattr(self, 'case_name_label'):
+            self.case_name_label.setText("No case loaded")
+            self.case_type_label.setText("N/A")
+            self.investigator_label.setText("N/A")
+            self.created_label.setText("N/A")
+            self.activity_text.setPlainText("No activity recorded yet.")
 
 
     # ADDED: Show Add Data Source Dialog
@@ -606,11 +744,22 @@ class MainWindow(QMainWindow):
                 source_type_item = self.data_source_viewer.data_source_table.item(row, 1)
                 source_type = source_type_item.text() if source_type_item else ""
                 
-                # If it's a disk image, enable parsing in file system viewer
+                # If it's a disk image, update all relevant widgets
                 if source_type == "Disk Image" and os.path.exists(source_path):
+                    # Update file system viewer
                     self.file_system_viewer.set_disk_image(source_path)
-                    # Optionally switch to file system tab
-                    # self.main_tab_widget.setCurrentIndex(2)
+                    
+                    # Update file carver widget
+                    if hasattr(self, 'file_carver_widget'):
+                        self.file_carver_widget.update_from_data_source(source_path, source_type)
+                    
+                    # Update timestamp widget
+                    if hasattr(self, 'timestamp_widget'):
+                        self.timestamp_widget.update_from_data_source(source_path, source_type)
+                        
+                    # Update left panel label
+                    if hasattr(self, 'left_file_tree'):
+                        self.left_file_tree.setHeaderLabel(f"File System - {os.path.basename(source_path)}")
 
     # NEW: Show file carver dialog
     def _show_file_carver_dialog(self):
@@ -619,22 +768,28 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No Case Open", "Please open a case before using file carver.")
             return
             
-        # Get selected data source
-        selected_items = self.data_source_viewer.data_source_table.selectedItems()
-        image_path = None
+        # Check if tab already exists
+        for i in range(self.main_tab_widget.count()):
+            if self.main_tab_widget.tabText(i) == "File Carving":
+                self.main_tab_widget.setCurrentIndex(i)
+                return
+                
+        # Create and add new tab
+        from gui.widgets.file_carver_widget import FileCarverWidget
+        self.file_carver_widget = FileCarverWidget(self)
         
+        # Get current data source if selected
+        selected_items = self.data_source_viewer.data_source_table.selectedItems()
         if selected_items:
             row = selected_items[0].row()
             path_item = self.data_source_viewer.data_source_table.item(row, 2)
             type_item = self.data_source_viewer.data_source_table.item(row, 1)
             
             if path_item and type_item and type_item.text() == "Disk Image":
-                image_path = path_item.text()
-                
-        # Import and show dialog
-        from gui.dialogs.file_carver_dialog import FileCarverDialog
-        dialog = FileCarverDialog(self, image_path, self.current_case_path)
-        dialog.exec()
+                self.file_carver_widget.set_disk_image(path_item.text())
+        
+        index = self.main_tab_widget.addTab(self.file_carver_widget, "File Carving")
+        self.main_tab_widget.setCurrentIndex(index)
 
     # NEW: Show timestamp analysis
     def _show_timestamp_analysis(self):
@@ -643,22 +798,28 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No Case Open", "Please open a case before using timestamp analysis.")
             return
             
-        # Get selected data source
-        selected_items = self.data_source_viewer.data_source_table.selectedItems()
-        image_path = None
+        # Check if tab already exists
+        for i in range(self.main_tab_widget.count()):
+            if self.main_tab_widget.tabText(i) == "Timestamp Analysis":
+                self.main_tab_widget.setCurrentIndex(i)
+                return
+                
+        # Create and add new tab
+        from gui.widgets.timestamp_analysis_widget import TimestampAnalysisWidget
+        self.timestamp_widget = TimestampAnalysisWidget(self)
         
+        # Get current data source if selected
+        selected_items = self.data_source_viewer.data_source_table.selectedItems()
         if selected_items:
             row = selected_items[0].row()
             path_item = self.data_source_viewer.data_source_table.item(row, 2)
             type_item = self.data_source_viewer.data_source_table.item(row, 1)
             
             if path_item and type_item and type_item.text() == "Disk Image":
-                image_path = path_item.text()
-                
-        # Import and show dialog
-        from gui.dialogs.timestamp_analysis_dialog import TimestampAnalysisDialog
-        dialog = TimestampAnalysisDialog(self, image_path)
-        dialog.exec()
+                self.timestamp_widget.set_disk_image(path_item.text())
+        
+        index = self.main_tab_widget.addTab(self.timestamp_widget, "Timestamp Analysis")
+        self.main_tab_widget.setCurrentIndex(index)
 
     # NEW: Show report generation dialog
     def _show_report_dialog(self):
@@ -672,6 +833,28 @@ class MainWindow(QMainWindow):
         dialog = ReportGenerationDialog(self, self.current_case_path)
         dialog.exec()
 
+    def close_tab(self, index):
+        """Close a tab if it's closable"""
+        tab_text = self.main_tab_widget.tabText(index)
+        
+        # Don't allow closing core tabs
+        if tab_text in ["Overview", "Data Sources", "File System"]:
+            return
+            
+        # Check if any operation is running
+        widget = self.main_tab_widget.widget(index)
+        if hasattr(widget, 'carver_thread') and widget.carver_thread and widget.carver_thread.isRunning():
+            QMessageBox.warning(self, "Operation Running", 
+                              "Cannot close tab while carving is in progress.")
+            return
+        if hasattr(widget, 'analysis_thread') and widget.analysis_thread and widget.analysis_thread.isRunning():
+            QMessageBox.warning(self, "Operation Running", 
+                              "Cannot close tab while analysis is in progress.")
+            return
+            
+        # Remove the tab
+        self.main_tab_widget.removeTab(index)
+        
     def _show_about_dialog(self):
         # ADDED: Basic About Dialog content (can be customized)
         QMessageBox.about(self, "About ByteProbe",
@@ -681,6 +864,418 @@ class MainWindow(QMainWindow):
                           "Developed for FYP<br><br>"
                           "© 2024 All rights reserved.")
 
+
+    def _apply_global_stylesheet(self):
+        """Apply global stylesheet to the application"""
+        stylesheet = """
+        /* Global Font and Colors */
+        QWidget {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 10pt;
+            color: #06202B;
+            background-color: #f9f9f9;
+        }
+        
+        /* Main Window */
+        QMainWindow {
+            background-color: #f9f9f9;
+        }
+        
+        /* Central Widget Container */
+        #central_widget_container {
+            background-color: transparent;
+        }
+        
+        /* Tab Widget */
+        QTabWidget::pane {
+            border: none;
+            background-color: white;
+            border-radius: 0px;
+        }
+        
+        QTabBar::tab {
+            background-color: #e8e8e8;
+            color: #06202B;
+            padding: 8px 20px;
+            margin-right: 1px;
+            border: none;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+        }
+        
+        QTabBar::tab:selected {
+            background-color: #7AE2CF;
+            color: #06202B;
+            font-weight: bold;
+        }
+        
+        QTabBar::tab:hover:!selected {
+            background-color: #d0d0d0;
+        }
+        
+        QTabBar::close-button {
+            image: url(:/icons/close.png);
+            margin-left: 4px;
+            padding: 2px;
+            border-radius: 2px;
+        }
+        
+        QTabBar::close-button:hover {
+            background-color: rgba(255, 107, 107, 0.3);
+        }
+        
+        /* Tree Widget */
+        QTreeWidget {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            outline: none;
+            color: #06202B;
+            selection-background-color: #7AE2CF;
+        }
+        
+        QTreeWidget::item {
+            padding: 5px;
+            border: none;
+        }
+        
+        QTreeWidget::item:selected {
+            background-color: #7AE2CF;
+            color: #06202B;
+        }
+        
+        QTreeWidget::item:hover:!selected {
+            background-color: rgba(122, 226, 207, 0.2);
+        }
+        
+        /* Table Widget */
+        QTableWidget {
+            background-color: white;
+            gridline-color: #f0f0f0;
+            border: none;
+            color: #06202B;
+        }
+        
+        QTableWidget::item {
+            padding: 8px;
+            border: none;
+        }
+        
+        QTableWidget::item:selected {
+            background-color: #7AE2CF;
+            color: #06202B;
+        }
+        
+        QHeaderView::section {
+            background-color: #7AE2CF;
+            color: #06202B;
+            padding: 8px;
+            border: none;
+            font-weight: bold;
+        }
+        
+        /* Buttons */
+        QPushButton {
+            background-color: #077A7D;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-weight: 500;
+            min-width: 80px;
+        }
+        
+        QPushButton:hover {
+            background-color: #055a5d;
+        }
+        
+        QPushButton:pressed {
+            background-color: #044244;
+        }
+        
+        QPushButton:disabled {
+            background-color: #d0d0d0;
+            color: #999999;
+        }
+        
+        /* Group Box */
+        QGroupBox {
+            font-weight: bold;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            margin-top: 12px;
+            padding-top: 12px;
+            background-color: white;
+            color: #06202B;
+        }
+        
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 5px 0 5px;
+            color: #077A7D;
+            background-color: white;
+        }
+        
+        /* Progress Bar */
+        QProgressBar {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            text-align: center;
+            background-color: #f5f5f5;
+            color: #06202B;
+            height: 20px;
+        }
+        
+        QProgressBar::chunk {
+            background-color: #7AE2CF;
+            border-radius: 3px;
+        }
+        
+        /* Text Edit */
+        QTextEdit {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 6px;
+            color: #06202B;
+        }
+        
+        QTextEdit:focus {
+            border: 1px solid #7AE2CF;
+        }
+        
+        /* Line Edit */
+        QLineEdit {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 8px;
+            color: #06202B;
+        }
+        
+        QLineEdit:focus {
+            border: 1px solid #7AE2CF;
+        }
+        
+        /* Combo Box */
+        QComboBox {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 6px;
+            color: #06202B;
+            min-width: 100px;
+        }
+        
+        QComboBox:focus {
+            border: 1px solid #7AE2CF;
+        }
+        
+        QComboBox::drop-down {
+            border: none;
+            width: 20px;
+        }
+        
+        QComboBox::down-arrow {
+            image: url(:/icons/down_arrow.png);
+            width: 12px;
+            height: 12px;
+        }
+        
+        QComboBox QAbstractItemView {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            selection-background-color: #7AE2CF;
+            selection-color: #06202B;
+        }
+        
+        /* Toolbar - Different from menubar */
+        QToolBar {
+            background-color: #077A7D;
+            border: none;
+            spacing: 3px;
+            padding: 5px;
+        }
+        
+        QToolBar QToolButton {
+            background-color: transparent;
+            border: none;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 2px;
+            color: white;
+            font-weight: 500;
+        }
+        
+        QToolBar QToolButton:hover:enabled {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        QToolBar QToolButton:pressed {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        QToolBar QToolButton:disabled {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        /* Menu Bar - Different from toolbar */
+        QMenuBar {
+            background-color: #06202B;
+            color: white;
+            border: none;
+        }
+        
+        QMenuBar::item {
+            padding: 8px 16px;
+            background-color: transparent;
+            color: white;
+        }
+        
+        QMenuBar::item:selected {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        QMenuBar::item:pressed {
+            background-color: #077A7D;
+        }
+        
+        /* Menu dropdown */
+        QMenu {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 4px 0px;
+        }
+        
+        QMenu::item {
+            padding: 8px 30px;
+            color: #06202B;
+            border-radius: 4px;
+            margin: 2px 4px;
+        }
+        
+        QMenu::item:selected {
+            background-color: #7AE2CF;
+            color: #06202B;
+        }
+        
+        QMenu::separator {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 4px 10px;
+        }
+        
+        QMenu::icon {
+            margin-right: 8px;
+        }
+        
+        /* Status Bar */
+        QStatusBar {
+            background-color: #f5f5f5;
+            border-top: 1px solid #e0e0e0;
+            color: #06202B;
+            padding: 4px;
+        }
+        
+        /* Splitter */
+        QSplitter::handle {
+            background-color: #e0e0e0;
+        }
+        
+        QSplitter::handle:horizontal {
+            width: 2px;
+        }
+        
+        QSplitter::handle:vertical {
+            height: 2px;
+        }
+        
+        QSplitter::handle:hover {
+            background-color: #7AE2CF;
+        }
+        
+        /* Label specific styling */
+        QLabel {
+            background-color: transparent;
+            color: #06202B;
+            border: none;
+        }
+        
+        /* Check Box */
+        QCheckBox {
+            color: #06202B;
+            spacing: 8px;
+        }
+        
+        QCheckBox::indicator {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 3px;
+            background-color: white;
+        }
+        
+        QCheckBox::indicator:checked {
+            background-color: #077A7D;
+            border-color: #077A7D;
+            image: url(:/icons/check.png);
+        }
+        
+        QCheckBox::indicator:hover {
+            border-color: #7AE2CF;
+        }
+        
+        /* Scroll bars */
+        QScrollBar:vertical {
+            background-color: #f5f5f5;
+            width: 12px;
+            border: none;
+            border-radius: 6px;
+        }
+        
+        QScrollBar::handle:vertical {
+            background-color: #c0c0c0;
+            border-radius: 6px;
+            min-height: 20px;
+        }
+        
+        QScrollBar::handle:vertical:hover {
+            background-color: #a0a0a0;
+        }
+        
+        QScrollBar:horizontal {
+            background-color: #f5f5f5;
+            height: 12px;
+            border: none;
+            border-radius: 6px;
+        }
+        
+        QScrollBar::handle:horizontal {
+            background-color: #c0c0c0;
+            border-radius: 6px;
+            min-width: 20px;
+        }
+        
+        QScrollBar::handle:horizontal:hover {
+            background-color: #a0a0a0;
+        }
+        
+        QScrollBar::add-line, QScrollBar::sub-line {
+            border: none;
+            background: none;
+        }
+        
+        /* File Explorer Panel */
+        #left_panel_container {
+            background-color: #f5f5f5;
+            border-right: 1px solid #e0e0e0;
+        }
+        """
+        
+        self.setStyleSheet(stylesheet)
 
     # --- Keep this method as it's called by main.py after splash screen ---
     def show_and_initiate_case_dialog(self):

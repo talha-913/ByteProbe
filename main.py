@@ -2,10 +2,8 @@ import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton
 from PyQt6.QtCore import Qt, QTimer 
 
-# Import the SplashScreen class from the Gui sub-directory
 from gui.splash_screen import SplashScreen
 
-# Import main window class from the Gui sub-directory
 from gui.main_window import MainWindow
 
 

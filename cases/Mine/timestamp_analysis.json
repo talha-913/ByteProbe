@@ -1,0 +1,76 @@
+{
+  "total_files": 6,
+  "suspicious_files": [
+    {
+      "file_path": "/System Volume Information/WPSettings.dat",
+      "anomalies": [
+        {
+          "type": "zero_precision",
+          "description": "All timestamps have zero microseconds (possible tool usage)",
+          "severity": "medium"
+        }
+      ],
+      "confidence": 0.2,
+      "details": {
+        "created": "2025-06-05T00:36:13",
+        "modified": "2025-06-05T00:36:14",
+        "accessed": "2025-06-05T00:00:00",
+        "mft_entry": 1031
+      }
+    },
+    {
+      "file_path": "/$MBR",
+      "anomalies": [
+        {
+          "type": "missing_timestamps",
+          "description": "One or more timestamps are missing",
+          "severity": "low"
+        }
+      ],
+      "confidence": 0.0,
+      "details": {}
+    },
+    {
+      "file_path": "/$FAT1",
+      "anomalies": [
+        {
+          "type": "missing_timestamps",
+          "description": "One or more timestamps are missing",
+          "severity": "low"
+        }
+      ],
+      "confidence": 0.0,
+      "details": {}
+    },
+    {
+      "file_path": "/$FAT2",
+      "anomalies": [
+        {
+          "type": "missing_timestamps",
+          "description": "One or more timestamps are missing",
+          "severity": "low"
+        }
+      ],
+      "confidence": 0.0,
+      "details": {}
+    },
+    {
+      "file_path": "/$OrphanFiles",
+      "anomalies": [
+        {
+          "type": "missing_timestamps",
+          "description": "One or more timestamps are missing",
+          "severity": "low"
+        }
+      ],
+      "confidence": 0.0,
+      "details": {}
+    }
+  ],
+  "patterns": [],
+  "statistics": {
+    "average_confidence": 0.04,
+    "max_confidence": 0.2,
+    "files_with_anomalies": 5
+  }
+}

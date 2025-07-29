@@ -82,28 +82,79 @@ class ReportGenerator:
     def _get_analysis_summary(self) -> Dict[str, Any]:
         """Get summary of analysis performed"""
         summary = {
-            'carved_files': self._count_carved_files(),
-            'timestamp_analysis': self._check_timestamp_analysis(),
+            'carved_files': self._get_carved_files_details(),
+            'timestamp_analysis': self._get_timestamp_analysis_details(),
             'file_system_parsed': self._check_file_system_parsing()
         }
         return summary
         
-    def _count_carved_files(self) -> int:
-        """Count carved files in case directory"""
+    def _get_carved_files_details(self) -> Dict[str, Any]:
+        """Get detailed carved files information"""
         carved_dir = os.path.join(self.case_path, "carved_files")
-        if os.path.exists(carved_dir):
-            return len([f for f in os.listdir(carved_dir) if os.path.isfile(os.path.join(carved_dir, f))])
-        return 0
+        details = {
+            'performed': os.path.exists(carved_dir),
+            'count': 0,
+            'files': [],
+            'by_type': {}
+        }
         
-    def _check_timestamp_analysis(self) -> bool:
-        """Check if timestamp analysis was performed"""
-        # Check for timestamp analysis results file
-        return os.path.exists(os.path.join(self.case_path, "timestamp_analysis.json"))
+        if details['performed']:
+            files = [f for f in os.listdir(carved_dir) if os.path.isfile(os.path.join(carved_dir, f))]
+            details['count'] = len(files)
+            
+            # Group by type
+            for file in files[:20]:  # Limit to first 20 for report
+                ext = file.split('.')[-1] if '.' in file else 'unknown'
+                details['by_type'][ext] = details['by_type'].get(ext, 0) + 1
+                details['files'].append({
+                    'name': file,
+                    'size': os.path.getsize(os.path.join(carved_dir, file))
+                })
+                
+        return details
+        
+    def _get_timestamp_analysis_details(self) -> Dict[str, Any]:
+        """Get detailed timestamp analysis results"""
+        analysis_file = os.path.join(self.case_path, "timestamp_analysis.json")
+        details = {
+            'performed': os.path.exists(analysis_file),
+            'suspicious_files': 0,
+            'top_anomalies': []
+        }
+        
+        if details['performed']:
+            try:
+                with open(analysis_file, 'r') as f:
+                    results = json.load(f)
+                    details['suspicious_files'] = len(results.get('suspicious_files', []))
+                    
+                    # Get top 5 suspicious files
+                    suspicious = results.get('suspicious_files', [])
+                    sorted_files = sorted(suspicious, key=lambda x: x.get('confidence', 0), reverse=True)
+                    
+                    for file in sorted_files[:5]:
+                        details['top_anomalies'].append({
+                            'file': file.get('file_path', 'Unknown'),
+                            'confidence': file.get('confidence', 0),
+                            'anomalies': [a['description'] for a in file.get('anomalies', [])]
+                        })
+            except:
+                pass
+                
+        return details
         
     def _check_file_system_parsing(self) -> bool:
         """Check if file system was parsed"""
-        # Check for file listing export
-        return os.path.exists(os.path.join(self.case_path, "file_list.csv"))
+        # Check for file listing export or parsing markers
+        file_list_path = os.path.join(self.case_path, "file_list.csv")
+        parsing_marker = os.path.join(self.case_path, ".file_system_parsed")
+        
+        # Also check if carved_files directory exists (indicates parsing activity)
+        carved_dir = os.path.join(self.case_path, "carved_files")
+        
+        return (os.path.exists(file_list_path) or 
+                os.path.exists(parsing_marker) or 
+                os.path.exists(carved_dir))
         
     def export_html_report(self, output_path: str, include_details: bool = True):
         """Export report as HTML"""
@@ -210,9 +261,45 @@ class ReportGenerator:
         html += f"""
         <h2>Analysis Summary</h2>
         <div class="summary-box">
-            <p><strong>Carved Files:</strong> {summary['carved_files']}</p>
             <p><strong>File System Parsed:</strong> {'Yes' if summary['file_system_parsed'] else 'No'}</p>
-            <p><strong>Timestamp Analysis:</strong> {'Performed' if summary['timestamp_analysis'] else 'Not performed'}</p>
+        """
+        
+        # Carved files details
+        carved = summary['carved_files']
+        if carved['performed']:
+            html += f"""
+            <h3>File Carving Results</h3>
+            <p><strong>Total Files Carved:</strong> {carved['count']}</p>
+            """
+            if carved['by_type']:
+                html += "<p><strong>Files by Type:</strong></p><ul>"
+                for ext, count in carved['by_type'].items():
+                    html += f"<li>{ext.upper()}: {count} files</li>"
+                html += "</ul>"
+        else:
+            html += "<p><strong>File Carving:</strong> Not performed</p>"
+            
+        # Timestamp analysis details
+        timestamp = summary['timestamp_analysis']
+        if timestamp['performed']:
+            html += f"""
+            <h3>Timestamp Analysis Results</h3>
+            <p><strong>Suspicious Files Found:</strong> {timestamp['suspicious_files']}</p>
+            """
+            if timestamp['top_anomalies']:
+                html += "<p><strong>Top Suspicious Files:</strong></p>"
+                for anomaly in timestamp['top_anomalies']:
+                    html += f"""
+                    <div class="data-source">
+                        <strong>{anomaly['file']}</strong><br>
+                        Confidence: {anomaly['confidence']:.1%}<br>
+                        Anomalies: {', '.join(anomaly['anomalies'])}
+                    </div>
+                    """
+        else:
+            html += "<p><strong>Timestamp Analysis:</strong> Not performed</p>"
+            
+        html += f"""
         </div>
         
         <div class="footer">
@@ -264,11 +351,33 @@ class ReportGenerator:
         lines.append("ANALYSIS SUMMARY")
         lines.append("-" * 30)
         summary = report_data['analysis_summary']
-        lines.append(f"Carved Files: {summary['carved_files']}")
         lines.append(f"File System Parsed: {'Yes' if summary['file_system_parsed'] else 'No'}")
-        lines.append(f"Timestamp Analysis: {'Performed' if summary['timestamp_analysis'] else 'Not performed'}")
-        lines.append("")
         
+        # Carved files
+        carved = summary['carved_files']
+        if carved['performed']:
+            lines.append(f"Files Carved: {carved['count']}")
+            if carved['by_type']:
+                lines.append("  By Type:")
+                for ext, count in carved['by_type'].items():
+                    lines.append(f"    - {ext.upper()}: {count} files")
+        else:
+            lines.append("File Carving: Not performed")
+            
+        # Timestamp analysis
+        timestamp = summary['timestamp_analysis']
+        if timestamp['performed']:
+            lines.append(f"Timestamp Analysis: Performed")
+            lines.append(f"  Suspicious Files: {timestamp['suspicious_files']}")
+            if timestamp['top_anomalies']:
+                lines.append("  Top Anomalies:")
+                for anomaly in timestamp['top_anomalies']:
+                    lines.append(f"    - {anomaly['file']}")
+                    lines.append(f"      Confidence: {anomaly['confidence']:.1%}")
+        else:
+            lines.append("Timestamp Analysis: Not performed")
+            
+        lines.append("")
         lines.append("=" * 60)
         lines.append(f"Report generated on {report_data['timestamp']}")
         

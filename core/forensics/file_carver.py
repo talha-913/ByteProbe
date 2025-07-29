@@ -1,5 +1,5 @@
 """
-File carving implementation for recovering deleted files
+File carver
 """
 import os
 import logging
@@ -12,7 +12,7 @@ from .file_signatures import FILE_SIGNATURES, identify_file_type, get_signature
 
 
 class BasicFileCarver(IFileCarver):
-    """Basic file carving implementation using header/footer signatures"""
+    """file carving implementation using header/footer signatures"""
     
     def __init__(self, parser: IImageParser):
         self.parser = parser
@@ -48,7 +48,6 @@ class BasicFileCarver(IFileCarver):
             return []
             
         try:
-            # Open image
             if not self.parser.open_image(image_path):
                 raise Exception("Failed to open disk image")
                 
@@ -56,11 +55,11 @@ class BasicFileCarver(IFileCarver):
             if hasattr(self.parser, 'img_info'):
                 image_size = self.parser.img_info.get_size()
             else:
-                # Fallback for mock parser
+                # Fallback 
                 image_size = 1024 * 1024 * 100  # 100MB default
                 
             # Read image in chunks
-            chunk_size = 1024 * 1024  # 1MB chunks
+            chunk_size = 1024 * 1024  # 1MB
             offset = 0
             
             # Buffer to handle signatures spanning chunks
@@ -138,7 +137,6 @@ class BasicFileCarver(IFileCarver):
                 if hasattr(self.parser, 'img_info'):
                     chunk = self.parser.img_info.read(current_offset, chunk_size)
                 else:
-                    # Mock data
                     chunk = b'\x00' * chunk_size
                     
                 if not chunk:
@@ -170,7 +168,6 @@ class BasicFileCarver(IFileCarver):
             filename = f"carved_{timestamp}_{file_hash}.{signature.extension}"
             filepath = os.path.join(output_dir, filename)
             
-            # Save file
             with open(filepath, 'wb') as f:
                 f.write(file_data)
                 
@@ -196,7 +193,6 @@ class BasicFileCarver(IFileCarver):
 
 
 class SmartFileCarver(BasicFileCarver):
-    """Enhanced file carver with validation and optimization"""
     
     def _carve_single_file(self, signature, start_offset: int, 
                           max_offset: int, output_dir: str) -> Optional[Dict[str, Any]]:
@@ -242,7 +238,6 @@ class SmartFileCarver(BasicFileCarver):
                 # Check PDF header
                 if not data.startswith(b'%PDF'):
                     return False
-                # Could check for xref table, etc.
                 return True
         except:
             return False
